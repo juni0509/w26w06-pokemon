@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+// import { useEffect, useState } from "react"
 import axios from "axios"
-import { Link } from "react-router"
+import { Link, useLoaderData } from "react-router"
 import type { Route } from "./+types/list"
 
 export function meta({}: Route.MetaArgs) {
@@ -16,58 +16,28 @@ type Pokemon = {
   image: string
 }
 
-export default function List() {
-  const [pokemons, setPokemons] = useState<Pokemon[]>([])
-  // 1. loading 상태 추가 (초깃값 true)
-  const [loading, setLoading] = useState<boolean>(true)
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  const response = await axios.get("https://pokeapi.co/api/v2/pokemon?limit=100")
+  const results = response.data.results
 
-  useEffect(() => {
-    async function fetchPokemons() {
-      try {
-        setLoading(true)
-        const response = await axios.get("https://pokeapi.co/api/v2/pokemon?limit=100")
-        const results = response.data.results
-        
-        const pokemonData: Pokemon[] = await Promise.all(
-          results.map(async ({ url }: { url: string }) => {
-            const pokemonResponse = await axios.get(url)
-            const { id, name, sprites } = pokemonResponse.data
-            return {
-              id,
-              name,
-              image: sprites.other["official-artwork"].front_default,
-            }
-          })
-        )
-
-        setPokemons(pokemonData)
-      } catch (error) {
-        console.error("포켓몬 데이터 에러: ", error)
-      } finally {
-        // 2. 성공/실패 여부와 관계없이 로딩 종료
-        setLoading(false)
+  const pokemonData: Pokemon[] = await Promise.all(
+    results.map(async ({ url }: { url: string }) => {
+      const pokemonResponse = await axios.get(url)
+      const { id, name, sprites } = pokemonResponse.data
+      return {
+        id,
+        name,
+        image: sprites.other["official-artwork"].front_default,
       }
-    }
+    })
+  )
 
-    fetchPokemons()
-  }, [])
+  return pokemonData
+}
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center text-xl font-semibold text-slate-900 animate-pulse">
-        로딩 중...
-      </div>
-    )
-  }
+export default function List() {
+  const pokemons = useLoaderData<typeof clientLoader>()
 
-  if (pokemons.length === 0) {
-    return (
-      <div className="min-h-screen bg-slate-50 p-6 flex items-center justify-center text-xl font-semibold text-slate-900">
-        포켓몬 데이터를 불러오지 못했습니다.
-      </div>
-    )
-  }
-  
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <h1 className="text-2xl font-bold mb-6 text-slate-800">포켓몬 목록</h1>
