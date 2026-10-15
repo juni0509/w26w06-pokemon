@@ -1,4 +1,3 @@
-// import { useEffect, useState } from "react"
 import axios from "axios"
 import { Link, useLoaderData } from "react-router"
 import type { Route } from "./+types/detail"
@@ -8,6 +7,7 @@ type Pokemon = {
   name: string
   types: { name: string }[]
   image: string
+  description?: string
 }
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
@@ -17,11 +17,24 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`)
   const { id, name, sprites } = response.data
 
+  const species = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${id}`)
+
+  const koreanName = species.data.names.find(
+    (item: { language: { name: string } }) => 
+      item.language.name === "ko"
+  )?.name
+
+  const description = species.data.flavor_text_entries.find(
+    (entry: { language: { name: string } }) => 
+      entry.language.name === "ko"
+  )?.flavor_text
+
   return {
     id,
-    name,
+    name: koreanName || name,
     types: response.data.types,
     image: sprites.other["official-artwork"].front_default,
+    description
   }
 }
 
@@ -42,6 +55,11 @@ export default function Detail() {
         <span className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
           No. {pokemon.id}
         </span>
+        {pokemon.description && (
+          <p className="mt-4 text-center text-slate-600 max-w-md mx-auto">
+            {pokemon.description}
+          </p>
+        )}
       </div>
     </div>
   )
